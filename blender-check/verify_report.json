@@ -1,0 +1,197 @@
+{
+ "source": "ramp_30fps.json",
+ "blender": "5.2.3 LTS",
+ "fps": 30,
+ "frameCount": 151,
+ "objects": 6,
+ "scene": {
+  "fps": 30.0,
+  "frame_start": 1,
+  "frame_end": 151
+ },
+ "perFrame": {
+  "maxPositionError_m": 2.3736572263288735e-07,
+  "maxRotationError_deg": 2.3474435767429915e-05,
+  "maxScaleError": 5.452461242505535e-07,
+  "worstAt": [
+   "obj_002",
+   92
+  ]
+ },
+ "betweenFrames": {
+  "maxPositionDeviation_m": 4.5874023424374855e-07,
+  "maxRotationDeviation_deg": 2.6920171042401e-05
+ },
+ "shapes": [
+  {
+   "id": "obj_000",
+   "blenderName": "obj_000_球1",
+   "label": "球1",
+   "shape": "sphere",
+   "meshDims_blender": [
+    0.999999,
+    0.999999,
+    1.0
+   ],
+   "dimError": 9.238719940185547e-07,
+   "scale": [
+    0.879986,
+    0.879986,
+    0.879986
+   ],
+   "verts": 610,
+   "keyframes": {
+    "fcurves": 7,
+    "keysPerCurve": 151,
+    "interpolation": [
+     "LINEAR"
+    ]
+   }
+  },
+  {
+   "id": "obj_001",
+   "blenderName": "obj_001_球2",
+   "label": "球2",
+   "shape": "sphere",
+   "meshDims_blender": [
+    0.999999,
+    0.999999,
+    1.0
+   ],
+   "dimError": 9.238719940185547e-07,
+   "scale": [
+    0.733931,
+    0.733931,
+    0.733931
+   ],
+   "verts": 610,
+   "keyframes": {
+    "fcurves": 7,
+    "keysPerCurve": 151,
+    "interpolation": [
+     "LINEAR"
+    ]
+   }
+  },
+  {
+   "id": "obj_002",
+   "blenderName": "obj_002_円柱3",
+   "label": "円柱3",
+   "shape": "cylinder",
+   "meshDims_blender": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "dimError": 0.0,
+   "scale": [
+    0.884427,
+    0.884427,
+    0.884427
+   ],
+   "verts": 64,
+   "keyframes": {
+    "fcurves": 7,
+    "keysPerCurve": 151,
+    "interpolation": [
+     "LINEAR"
+    ]
+   }
+  },
+  {
+   "id": "obj_003",
+   "blenderName": "obj_003_立方体4",
+   "label": "立方体4",
+   "shape": "cube",
+   "meshDims_blender": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "dimError": 0.0,
+   "scale": [
+    0.955168,
+    0.955168,
+    0.955168
+   ],
+   "verts": 8,
+   "keyframes": {
+    "fcurves": 7,
+    "keysPerCurve": 151,
+    "interpolation": [
+     "LINEAR"
+    ]
+   }
+  },
+  {
+   "id": "obj_004",
+   "blenderName": "obj_004_立方体5",
+   "label": "立方体5",
+   "shape": "cube",
+   "meshDims_blender": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "dimError": 0.0,
+   "scale": [
+    0.839841,
+    0.839841,
+    0.839841
+   ],
+   "verts": 8,
+   "keyframes": {
+    "fcurves": 7,
+    "keysPerCurve": 151,
+    "interpolation": [
+     "LINEAR"
+    ]
+   }
+  },
+  {
+   "id": "obj_005",
+   "blenderName": "obj_005_円柱6",
+   "label": "円柱6",
+   "shape": "cylinder",
+   "meshDims_blender": [
+    1.0,
+    1.0,
+    1.0
+   ],
+   "dimError": 0.0,
+   "scale": [
+    0.978469,
+    0.978469,
+    0.978469
+   ],
+   "verts": 64,
+   "keyframes": {
+    "fcurves": 7,
+    "keysPerCurve": 151,
+    "interpolation": [
+     "LINEAR"
+    ]
+   }
+  }
+ ],
+ "vsPhysicsSteps": {
+  "truthFps": 60,
+  "maxPositionError_m": 0.051858464393615744,
+  "maxRotationError_deg": 4.45812934413603,
+  "worstAt_id_sec": [
+   "obj_005",
+   0.65
+  ]
+ },
+ "ids": true,
+ "scene24fps": {
+  "maxPositionError_m": 2.3736572263288735e-07,
+  "maxRotationError_deg": 2.3474435767429915e-05,
+  "maxScaleError": 5.452461242505535e-07,
+  "worstAt": [
+   "obj_002",
+   92
+  ],
+  "lastKeyFrame": 121.0
+ }
+}

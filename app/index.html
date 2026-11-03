@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>3D演出ラボ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Serif+JP:wght@500;900&family=M+PLUS+Rounded+1c:wght@500;800&family=Dela+Gothic+One&family=Yomogi&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">◆</span>
+        <span class="name">3D演出ラボ</span>
+        <span class="sub">演出アイデアをすばやく試す実験室</span>
+      </div>
+      <div class="keys">
+        <span><kbd>Space</kbd> 再生 / 停止</span>
+        <span><kbd>R</kbd> 再実行</span>
+        <span><kbd>P</kbd> スクリーンショット</span>
+      </div>
+    </header>
+
+    <!-- 左：演出プリセットと記録 -->
+    <aside class="panel left">
+      <section>
+        <h2>演出を選ぶ</h2>
+        <div id="presetList" class="preset-list"></div>
+      </section>
+      <section class="record">
+        <h2>アイデアを記録</h2>
+        <textarea id="memo" rows="5" placeholder="例：最後に一瞬止めてから文字がふわっと光る。Blenderでは渦の回転をもう少し遅く…"></textarea>
+        <div class="btn-grid">
+          <button id="btnShot" type="button">📷 スクリーンショット</button>
+          <button id="btnSaveJson" type="button">⬇ 設定を保存</button>
+          <button id="btnLoadJson" type="button">⬆ 設定を読み込む</button>
+          <button id="btnSaveAll" type="button" class="primary">まとめて保存</button>
+          <div class="blender-row">
+            <button id="btnBlender" type="button" class="blender">⇪ Blenderへ出力</button>
+            <select id="blenderFps" aria-label="出力するフレームレート" title="出力するフレームレート">
+              <option value="30" selected>30fps</option>
+              <option value="60">60fps（物理の全ステップ）</option>
+              <option value="24">24fps（補間）</option>
+            </select>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept=".json,application/json" hidden>
+        <p class="note">保存したJSONはプレビューにドラッグ＆ドロップしても復元できます。</p>
+        <details class="hints">
+          <summary>Blenderで組み立てるときのメモ</summary>
+          <ul id="hintList"></ul>
+        </details>
+      </section>
+    </aside>
+
+    <!-- 中央：3Dプレビューと再生バー -->
+    <main class="center">
+      <div class="viewport" id="viewport">
+        <div class="overlay tl"><span id="presetBadge" class="badge"></span></div>
+        <div class="overlay tr">
+          <button id="btnAutoRotate" type="button" class="chip">自動回転</button>
+          <button id="btnResetView" type="button" class="chip">視点リセット</button>
+        </div>
+        <div class="overlay bl hint">ドラッグ：回転　ホイール：拡大縮小　右ドラッグ：移動</div>
+        <div class="dropzone" id="dropzone">JSONをドロップして設定を復元</div>
+        <div class="loading show" id="loading">読み込み中…</div>
+      </div>
+      <div class="timeline">
+        <button id="btnPlay" type="button" class="icon-btn play" title="再生 / 停止（Space）"></button>
+        <button id="btnRestart" type="button" class="icon-btn" title="最初から再実行（R）">
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z" fill="currentColor"/></svg>
+        </button>
+        <button id="btnStep" type="button" class="icon-btn" title="コマ送り（→）" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 5v14l9-7zM16 5h2.5v14H16z" fill="currentColor"/></svg>
+        </button>
+        <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="再生位置">
+        <span id="timeLabel" class="time">0.0 / 3.0s</span>
+        <div id="loopSeg" class="seg small" aria-label="繰り返し"></div>
+      </div>
+    </main>
+
+    <!-- 右：演出の調整 -->
+    <aside class="panel right" id="rightPanel"></aside>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <!-- アプリ本体（Lab.modules に登録 → Three.js 読み込み後に初期化） -->
+  <script src="js/util.js"></script>
+  <script src="js/params.js"></script>
+  <script src="js/targets/registry.js"></script>
+  <script src="js/targets/primitives.js"></script>
+  <script src="js/targets/text.js"></script>
+  <script src="js/effects/common.js"></script>
+  <script src="js/effects/gather.js"></script>
+  <script src="js/effects/shatter.js"></script>
+  <script src="js/effects/appear.js"></script>
+  <script src="js/sim/glyphs.js"></script>
+  <script src="js/sim/subjects.js"></script>
+  <script src="js/sim/environment.js"></script>
+  <script src="js/sim/rules.js"></script>
+  <script src="js/sim/world.js"></script>
+  <script src="js/sim/controller.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/stage.js"></script>
+  <script src="js/shards.js"></script>
+  <script src="js/timeline.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/record.js"></script>
+  <script src="js/export/blender.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    setTimeout(function () {
+      if (!window.THREE) {
+        document.getElementById('loading').textContent =
+          'Three.js を読み込めませんでした。インターネット接続を確認して再読み込みしてください。';
+      }
+    }, 10000);
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    window.THREE = THREE;
+    Lab.addons = { OrbitControls, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, RoomEnvironment };
+    Lab.boot();
+  </script>
+</body>
+</html>
