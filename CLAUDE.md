@@ -40,6 +40,9 @@ GitHub Issue が共有の作業依頼書です。ChatGPT と Claude Code は自�
 
 自動テストはないため、変更に応じて次を行い、結果を PR に書く。
 
-- 構文チェック：`for f in $(find app/js -name '*.js'); do node --check "$f"; done`、`python3 -m py_compile app/blender/*.py`
+- 構文チェック（リポジトリ直下で実行）：
+  - Bash：`for f in $(find app/js -name '*.js'); do node --check "$f"; done`、`python3 -m py_compile app/blender/*.py`
+  - Windows PowerShell：`Get-ChildItem app/js -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }`、`Get-ChildItem app/blender/*.py | ForEach-Object { python -m py_compile $_.FullName }`
+  - 何も表示されなければ成功（エラーがあるとファイル名と行番号が表示される）
 - 動作確認：`cd app && python -m http.server 8000` で開き、変更した演出・シミュレーションを再生してコンソールにエラーがないことを確かめる（可能ならスクリーンショットを添える）。
 - Blender 連携を変えた場合：`app/blender/README.md` の手順で往復検証を行う（Blender がない環境ではその旨を書く）。
