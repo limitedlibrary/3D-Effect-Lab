@@ -70,4 +70,7 @@ preview*.png        画面のスクリーンショット
 - `*.blend`：`lab_to_blender.py` で JSON から作り直せる Blender ファイル
 - `blender-check/*_30fps.json` など：ラボの「⇪ Blenderへ出力」で作るアニメーションJSON
 
+## 開発の進め方（Issue運用）
+作業依頼は GitHub Issue に書き、Claude Code が作業用ブランチで実装して Pull Request で提案します。マージと完成判断は利用者が行います。Claude Code 向けのルールは [CLAUDE.md](CLAUDE.md) にあります。
+
 詳しい操作方法は [app/README.md](app/README.md) を見てください。
