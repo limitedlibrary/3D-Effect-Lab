@@ -52,8 +52,17 @@ python -m http.server 8000
 ```
 ブラウザで <http://localhost:8000> を開きます。
 
-### GitHub Pages で公開する（任意）
-静的ファイルだけなので、`app/` を公開フォルダにすればそのまま動きます。
+### GitHub Pages で開く
+`app/` フォルダだけを GitHub Pages に自動公開しています（README や `blender-check/` は公開しません）。
+
+- **公開URL**：`https://limitedlibrary.github.io/3D-Effect-Lab/`（予定。初回デプロイ後に Actions の結果で確定させます）
+- **更新タイミング**：`main` に push（Pull Request のマージを含む）すると、`.github/workflows/deploy-pages.yml` が動いて1〜2分で反映されます。Actions 画面の「Deploy app to GitHub Pages」→「Run workflow」で手動実行もできます。反映後に古い画面が出るときは強制再読み込み（Ctrl+Shift+R / Cmd+Shift+R）してください。
+- **最初の設定（1回だけ）**：リポジトリの **Settings → Pages → Build and deployment → Source** を「**GitHub Actions**」にします。GitHub Free ではリポジトリが Public でないと Pages を使えません。
+- **うまく表示されないとき**：
+  - **Actions** タブで「Deploy app to GitHub Pages」の実行が失敗していないか
+  - **Settings → Pages** に公開URLと最終デプロイが表示されているか
+  - **Settings → Environments → github-pages** のデプロイ履歴
+  - ブラウザの開発者ツール（F12）の Console に Three.js / Rapier / フォントの読み込みエラーが出ていないか（CDN から読み込むためネット接続が必要です）
 
 ## フォルダ構成
 ```
