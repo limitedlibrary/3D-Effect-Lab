@@ -1,0 +1,43 @@
+# 3D演出ラボ（app/）を GitHub Pages に公開するワークフロー
+# - main への push で自動デプロイ。Actions 画面から手動実行（Run workflow）もできる
+# - 公開するのは app/ フォルダだけ（README・blender-check/ などは公開しない）
+# - HTML/CSS/JS はそのまま配信するのでビルド工程はない
+name: Deploy app to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Pages へのデプロイに必要な最小限の権限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時に走るデプロイは1本だけ。実行中のデプロイは途中で止めない
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload app/ as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
