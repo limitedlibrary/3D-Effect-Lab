@@ -55,7 +55,7 @@ python -m http.server 8000
 ### GitHub Pages で開く
 `app/` フォルダだけを GitHub Pages に自動公開しています（README や `blender-check/` は公開しません）。
 
-- **公開URL**：`https://limitedlibrary.github.io/3D-Effect-Lab/`（予定。初回デプロイ後に Actions の結果で確定させます）
+- **公開URL**：<https://limitedlibrary.github.io/3D-Effect-Lab/>
 - **更新タイミング**：`main` に push（Pull Request のマージを含む）すると、`.github/workflows/deploy-pages.yml` が動いて1〜2分で反映されます。Actions 画面の「Deploy app to GitHub Pages」→「Run workflow」で手動実行もできます。反映後に古い画面が出るときは強制再読み込み（Ctrl+Shift+R / Cmd+Shift+R）してください。
 - **最初の設定（1回だけ）**：リポジトリの **Settings → Pages → Build and deployment → Source** を「**GitHub Actions**」にします。GitHub Free ではリポジトリが Public でないと Pages を使えません。
 - **うまく表示されないとき**：
