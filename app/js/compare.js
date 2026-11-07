@@ -1,11 +1,13 @@
 /*
  * 比較モード：同じ演出を2〜4枠で並べ、枠ごとにカメラ・照明・マテリアルを変えて見比べる
  *
- * - 比較を始めると、1画面で編集中の演出（設定一式＋視点）を複製して、すべての枠に配る
+ * - 比較を始めると、A枠には1画面で編集中の演出（設定一式＋視点）をそのまま置き、B〜D枠には
+ *   その案からカメラ（角度・高さ・距離）と見た目（質感・色・照明）の一部を変えた候補を自動で並べる
  * - 演出（動き）の設定は全枠で共通。枠ごとに変えられるのはカメラと「見た目」（params.js の look グループ）
  * - 再生位置は全枠で共有する。タイムライン型の演出は1つの Lab.Timeline の進行度で全枠を描き、
  *   シミュレーションは各枠の物理ワールドに同じ操作を送る（同じ設定・同じ乱数なので同じ動きになる）
- * - 「この案から比較」で、その枠の設定一式を起点にした新しい比較を作る。元の比較は履歴に残り、いつでも戻れる
+ * - 「この案から比較」で、その枠の設定一式を A 枠に置き、残りの枠にその案から少しだけ変えた候補を並べた
+ *   新しい比較を作る。元の比較（自動の候補・手動調整を含む）は履歴に残り、いつでも戻れる
  * - 「採用」でその枠の設定を1画面編集へ引き継ぐ。「比較をやめる」なら比較前の状態のまま1画面に戻る
  * 比較の履歴はページを開いている間だけ保持する（保存はしない）。
  */
@@ -20,6 +22,7 @@ Lab.modules.push(function () {
   // カメラの候補（base は比較を始めたときの視点）
   const CAMERAS = {
     base: { label: '元の視点' },
+    auto: { label: '自動の候補' }, // 自動で並べた候補の構図（候補の枠だけ）
     low: { label: '低い', position: [0, -1.9, 11.5], target: [0, 0.8, 0] },
     high: { label: '高い', position: [0, 10, 8], target: [0, -0.5, 0] },
     side: { label: '横から', position: [11, 1.8, 4.5], target: [0, 0, 0] },
@@ -30,6 +33,102 @@ Lab.modules.push(function () {
   const el = (tag, cls, text) => Lab.el(tag, cls, text);
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const pickLook = (params) => { const o = {}; for (const k of LOOK_KEYS) o[k] = params[k]; return o; };
+
+  // ---- 候補の自動生成（B〜D枠） ----
+  // strength：1 は比較を始めたとき（適度に変える）、BRANCH_STRENGTH は「この案から比較」（少しずつ変える）
+  const BRANCH_STRENGTH = 0.5;
+  const DEG = Math.PI / 180;
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pickOne = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+  // 構図の候補：注視点はそのままに、注視点の周りでカメラを回す・上げ下げする・寄せ引きする。
+  // 注視点を動かさないので被写体は画面の中央付近に残り、距離と高さも範囲を決めて極端にならないようにする
+  function varyCamera(base, move, s) {
+    const t = base.target, p = base.position;
+    const off = [p[0] - t[0], p[1] - t[1], p[2] - t[2]];
+    const r = Math.hypot(off[0], off[1], off[2]) || 1;
+    const elev = Math.asin(clamp(off[1] / r, -1, 1));
+    const az = Math.atan2(off[0], off[2]);
+    // 元の視点がもともと範囲の外なら、その値までは許す（元より極端にはしない）
+    const elevMin = Math.min(3 * DEG, elev), elevMax = Math.max(55 * DEG, elev);
+    const rMin = Math.min(5, r), rMax = Math.max(26, r);
+    const az2 = az + move.yaw * rand(20, 35) * DEG * s;
+    let elev2 = elev;
+    if (move.elev > 0) elev2 = elev + rand(14, 24) * DEG * s;
+    else if (move.elev < 0) elev2 = elev - rand(7, 12) * DEG * s;
+    elev2 = clamp(elev2, elevMin, elevMax);
+    let r2 = r;
+    if (move.dist < 0) r2 = r * (1 - rand(0.08, 0.14) * s); // 寄りは控えめ（被写体がはみ出しにくいように）
+    else if (move.dist > 0) r2 = r * (1 + rand(0.14, 0.24) * s);
+    r2 = clamp(r2, rMin, rMax);
+    const position = [
+      t[0] + r2 * Math.cos(elev2) * Math.sin(az2),
+      t[1] + r2 * Math.sin(elev2),
+      t[2] + r2 * Math.cos(elev2) * Math.cos(az2),
+    ];
+    const parts = [move.yaw > 0 ? '右から' : '左から'];
+    if (elev2 - elev > 2 * DEG) parts.push('高め');
+    else if (elev - elev2 > 2 * DEG) parts.push('低め');
+    if (r2 < r * 0.97) parts.push('寄り');
+    else if (r2 > r * 1.03) parts.push('引き');
+    return { camera: { position, target: t.slice() }, label: parts.join(' ') };
+  }
+
+  // 見た目の候補：質感・色・照明のうち選んだ項目だけ変える。used で候補どうしの値の重なりを避ける
+  function varyLook(look, kind, used, s) {
+    const fresh = (keys, cur, key) => {
+      const all = keys.filter((k) => k !== cur);
+      const unused = all.filter((k) => !used[key].has(k));
+      const v = pickOne(unused.length ? unused : all);
+      used[key].add(v);
+      return v;
+    };
+    if (kind === 'finish') look.finish = fresh(Object.keys(Lab.finishes), look.finish, 'finish');
+    else if (kind === 'palette') look.palette = fresh(Object.keys(Lab.palettes), look.palette, 'palette');
+    else if (kind === 'light') {
+      const p0 = typeof look.lightPower === 'number' ? look.lightPower : 1;
+      const changePower = () => {
+        // 明るすぎ・暗すぎにならない範囲（0.6〜1.6倍）で、元から 0.25〜0.45倍ぶん（少しずつなら半分）変える
+        const d = rand(0.25, 0.45) * s;
+        const up = p0 + d <= 1.6 && (p0 - d < 0.6 || Math.random() < 0.5);
+        look.lightPower = Math.round(clamp(up ? p0 + d : p0 - d, 0.6, 1.6) * 20) / 20;
+      };
+      if (s < 1 && Math.random() < 0.5) changePower(); // 少しずつ変えるときは、強さだけのこともある
+      else {
+        look.lightDir = fresh(Object.keys(Lab.lightDirs), look.lightDir, 'lightDir');
+        if (Math.random() < 0.4) changePower();
+      }
+    }
+  }
+
+  // 基準の案（params と camera）から、候補 n 個ぶんの枠を作る。
+  // どの候補も構図と見た目の両方を変える（2枠でも両方の違いが見える）。変える見た目の項目は候補ごとに替える
+  function makeCandidates(base, n, s) {
+    const yawStart = Math.random() < 0.5 ? 1 : -1;
+    const elevs = shuffle([1, -1, 0]);
+    const dists = shuffle([-1, 1, 0]);
+    const kinds = shuffle(['finish', 'palette', 'light']);
+    const used = { finish: new Set(), palette: new Set(), lightDir: new Set() };
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const move = { yaw: k % 2 ? -yawStart : yawStart, elev: elevs[k % 3], dist: dists[k % 3] };
+      if (!move.elev && !move.dist) move.dist = s < 1 ? 0 : 1; // 回り込みだけだと差が小さいので、最初の比較では引きも加える
+      const cam = varyCamera(base.camera, move, s);
+      const look = pickLook(base.params);
+      const changes = [kinds[k % 3]];
+      // 最初の比較では、半分くらいの候補でもう1項目変える（全項目を一律には変えない）
+      if (s >= 1 && Math.random() < 0.5) changes.push(kinds[(k + 1 + Math.floor(Math.random() * 2)) % 3]);
+      for (const kind of changes) varyLook(look, kind, used, s);
+      out.push({ look, camera: cam.camera, camPreset: 'auto', autoCamera: clone(cam.camera), camLabel: cam.label });
+    }
+    return out;
+  }
 
   function button(cls, text, title) {
     const b = el('button', cls, text);
@@ -258,15 +357,16 @@ Lab.modules.push(function () {
     }
 
     // ---- 比較の作成・切り替え ----
-    makeComparison(base, from, count) {
-      const look = pickLook(base.params);
+    // A 枠は基準の案そのまま、B〜D 枠は自動の候補（strength は makeCandidates を参照）
+    makeComparison(base, from, count, strength) {
+      const a = { look: pickLook(base.params), camera: clone(base.camera), camPreset: 'base' };
       return {
         title: '比較' + (this.history.length + 1),
         from,
         base,
         count,
         selected: 0,
-        frames: Array.from({ length: MAX }, () => ({ look: { ...look }, camera: clone(base.camera), camPreset: 'base' })),
+        frames: [a, ...makeCandidates(base, MAX - 1, strength)],
       };
     }
 
@@ -275,7 +375,7 @@ Lab.modules.push(function () {
       this.history = [];
       this.resume = null;
       this.origin = clone(snapshot);
-      this.history.push(this.makeComparison(clone(snapshot), null, MAX));
+      this.history.push(this.makeComparison(clone(snapshot), null, MAX, 1));
       this.cur = 0;
       this.active = true;
       this.root.hidden = false;
@@ -303,7 +403,7 @@ Lab.modules.push(function () {
       const c = this.c, f = c.frames[i];
       const base = clone({ ...c.base, params: this.frameParams(i), camera: f.camera });
       const from = `${c.title}の案${LETTERS[i]}`;
-      this.history.push(this.makeComparison(base, from, c.count));
+      this.history.push(this.makeComparison(base, from, c.count, BRANCH_STRENGTH));
       this.cur = this.history.length - 1;
       this.h.toast(`${this.c.title}を作りました（${from}から）`);
       this.load({ keep: true });
@@ -457,8 +557,9 @@ Lab.modules.push(function () {
       const f = this.c.frames[i];
       const d = CAMERAS[id];
       this.dragging = null;
+      if (id === 'auto' && !f.autoCamera) return;
       f.camPreset = id;
-      f.camera = clone(id === 'base' ? this.c.base.camera : { position: d.position, target: d.target });
+      f.camera = clone(id === 'base' ? this.c.base.camera : id === 'auto' ? f.autoCamera : { position: d.position, target: d.target });
       const v = this.viewers[i];
       if (v && v.shows === this.c) v.setView(f.camera); // 読み込み中なら、読み込みの最後に反映される
       this.refreshSide();
@@ -486,6 +587,7 @@ Lab.modules.push(function () {
       const c = this.c, f = c.frames[i];
       const parts = [];
       if (f.camPreset === 'custom') parts.push('カメラ：調整');
+      else if (f.camPreset === 'auto') parts.push('カメラ：' + f.camLabel);
       else if (f.camPreset !== 'base') parts.push('カメラ：' + CAMERAS[f.camPreset].label);
       for (const def of LOOK_DEFS) {
         if (f.look[def.key] !== c.base.params[def.key]) parts.push(`${SHORT[def.key] || def.label}：${valueLabel(def, f.look[def.key])}`);
@@ -517,6 +619,7 @@ Lab.modules.push(function () {
       // 選んだ枠の調整
       this.adjustTitle.textContent = `案${LETTERS[i]} の見え方`;
       for (const k in this.camBtns) this.camBtns[k].classList.toggle('on', k === f.camPreset);
+      this.camBtns.auto.hidden = !f.autoCamera; // A 枠（基準）には自動の候補がない
       const params = this.frameParams(i);
       for (const ctl of this.lookCtrls) {
         const d = ctl.def;
