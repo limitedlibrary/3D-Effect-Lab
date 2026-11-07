@@ -197,6 +197,7 @@ Lab.modules.push(function () {
       // 採用した案の設定を引き継いで1画面編集に戻る
       adopt(r) {
         appRoot.classList.remove('comparing');
+        beforeCompare = null;
         state.effect = r.effect;
         state.presetId = r.presetId;
         state.modified = r.modified;
@@ -207,17 +208,26 @@ Lab.modules.push(function () {
         toast(`${r.label}を採用しました。続けて編集できます`);
       },
       // 比較前の編集状態のまま1画面に戻る（1画面の状態は比較中に変えていない）
+      // 比較に入るときに止めた再生と自動回転も、比較前の状態に戻す
       cancel() {
         appRoot.classList.remove('comparing');
+        if (beforeCompare) {
+          stage.controls.autoRotate = beforeCompare.autoRotate;
+          btnAuto.classList.toggle('on', beforeCompare.autoRotate);
+          if (beforeCompare.playing) clock().play();
+          beforeCompare = null;
+        }
         toast('比較をやめて、比較前の編集状態に戻りました');
       },
     });
+    let beforeCompare = null; // 比較に入る前の再生中かどうか・自動回転（「比較をやめる」で戻す）
     const btnCompare = $('btnCompare');
     btnCompare.addEventListener('click', async () => {
       if (compare.active) return;
       btnCompare.disabled = true;
       try {
         await chain; // 設定の反映が終わってから複製する
+        beforeCompare = { playing: clock().playing, autoRotate: stage.controls.autoRotate };
         clock().pause();
         stage.controls.autoRotate = false;
         btnAuto.classList.remove('on');

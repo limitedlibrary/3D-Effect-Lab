@@ -78,6 +78,16 @@ Lab.modules.push(function () {
 
     set visible(on) { this.el.hidden = !on; }
 
+    // 視点を置き換える。直前のドラッグの惰性（減衰中の回転）を先に消しておかないと、
+    // 置き換えた後もしばらく回り続けて、別の比較の視点として記録されてしまう
+    setView(view) {
+      const c = this.stage.controls;
+      c.enableDamping = false;
+      c.update(); // 減衰中の回転・移動をここで使い切る
+      c.enableDamping = true;
+      this.stage.setView(view);
+    }
+
     setLoading(on) { this.loading.classList.toggle('show', on); }
 
     // 1画面編集の applySim / applyEffect と同じ手順で、この枠に設定を反映する
@@ -120,6 +130,8 @@ Lab.modules.push(function () {
       this.loop = 'once';
       this.busy = false;
       this.chain = Promise.resolve();
+      this.loadGen = 0;     // 読み込みの依頼番号（新しい依頼が来たら、古い読み込みは途中でやめる）
+      this.resume = null;   // 読み込みが終わったら戻す再生状態（連続して依頼されても最初の状態を保つ）
       this.build();
     }
 
@@ -130,8 +142,9 @@ Lab.modules.push(function () {
     // 再生位置を読み取る相手（シミュレーションは全枠が同じ状態なので A の枠で代表する）
     get lead() { return this.isSim ? this.viewers[0].sim : this.timeline; }
 
-    frameParams(i) {
-      return { ...this.c.base.params, ...this.c.frames[i].look };
+    // c を渡すと、今表示中ではない比較（読み込み中に切り替えられた比較など）の値を取れる
+    frameParams(i, c = this.c) {
+      return { ...c.base.params, ...c.frames[i].look };
     }
 
     // ---- 画面の組み立て ----
@@ -260,6 +273,7 @@ Lab.modules.push(function () {
     // snapshot: { effect, presetId, modified, params, camera, loop }
     open(snapshot) {
       this.history = [];
+      this.resume = null;
       this.origin = clone(snapshot);
       this.history.push(this.makeComparison(clone(snapshot), null, MAX));
       this.cur = 0;
@@ -270,6 +284,8 @@ Lab.modules.push(function () {
     }
 
     close() {
+      this.loadGen++; // 途中の読み込みがあれば打ち切る
+      this.resume = null;
       this.pause();
       this.active = false;
       this.root.hidden = true;
@@ -302,18 +318,26 @@ Lab.modules.push(function () {
 
     // 枠の表示と設定をそろえ、再生位置を全枠で合わせる
     load({ restart = false, keep = false } = {}) {
-      this.chain = this.chain.then(() => this.doLoad(restart, keep)).catch((e) => {
+      const gen = ++this.loadGen;
+      // 依頼した時点の再生状態を覚えておく（前の読み込みが途中なら、その前の状態をそのまま引き継ぐ）
+      if (keep && !this.resume && this.viewers.length) this.resume = { playing: this.lead.playing, progress: this.lead.progress };
+      // 読み込みが終わるまで、どの枠もどの比較にも視点を書き戻さない（比較どうしで設定が混ざらないように）
+      for (const v of this.viewers) v.shows = null;
+      this.chain = this.chain.then(() => this.doLoad(gen, restart, keep)).catch((e) => {
         console.error(e);
         this.h.toast('比較の準備に失敗しました：' + e.message);
       }).finally(() => { this.busy = false; });
       return this.chain;
     }
 
-    async doLoad(restart, keep) {
+    async doLoad(gen, restart, keep) {
+      if (gen !== this.loadGen) return; // もっと新しい依頼がある
       this.busy = true;
-      const c = this.c, eff = this.effect;
-      const wasPlaying = keep && this.viewers.length ? this.lead.playing : false;
-      const progress = keep && this.viewers.length ? this.lead.progress : 0;
+      const c = this.c, eff = Lab.effects[c.base.effect];
+      const stale = () => gen !== this.loadGen || c !== this.c;
+      const resume = keep ? this.resume : null;
+      const wasPlaying = resume ? resume.playing : false;
+      const progress = resume ? resume.progress : 0;
       this.pause();
       this.grid.className = 'cmp-grid n' + c.count;
       for (let i = 0; i < MAX; i++) {
@@ -329,20 +353,24 @@ Lab.modules.push(function () {
       this.dragging = null;
       for (let i = 0; i < c.count; i++) {
         const v = this.viewers[i];
-        v.stage.setView(c.frames[i].camera);
+        v.setView(c.frames[i].camera);
         v.setLoading(true);
       }
       try {
         for (let i = 0; i < c.count; i++) {
-          await this.viewers[i].apply(eff, this.frameParams(i), false);
+          await this.viewers[i].apply(eff, this.frameParams(i, c), false);
+          if (stale()) return; // 読み込み中に別の比較へ切り替えられた：続きは新しい読み込みに任せる
           this.viewers[i].setLoading(false);
         }
       } catch (e) {
         if (this.isSim) throw new Error('物理エンジンを読み込めませんでした。インターネット接続を確認してください。');
         throw e;
       } finally {
-        for (const v of this.shown) v.setLoading(false);
+        if (!stale()) for (const v of this.shown) v.setLoading(false);
       }
+      // ここまで来たら全枠が c の設定になっている。視点の書き戻し先を c に決める
+      this.resume = null;
+      this.shown.forEach((v, i) => { v.setView(c.frames[i].camera); v.shows = c; });
 
       if (this.isSim) {
         for (const v of this.shown) v.sim.loop = this.loop === 'once' ? 'once' : 'loop';
@@ -416,7 +444,11 @@ Lab.modules.push(function () {
       const c = this.c, i = c.selected;
       if (c.frames[i].look[key] === value) return;
       c.frames[i].look[key] = value;
-      this.chain = this.chain.then(() => this.viewers[i].apply(this.effect, this.frameParams(i), true)).catch((e) => console.error(e));
+      // 反映する時点でもその枠が同じ比較を表示しているときだけ反映する（違えば次の読み込みが反映する）
+      this.chain = this.chain.then(() => {
+        const v = this.viewers[i];
+        if (v && v.shows === c) return v.apply(Lab.effects[c.base.effect], this.frameParams(i, c), true);
+      }).catch((e) => console.error(e));
       this.refreshSide();
       this.refreshLabels();
     }
@@ -427,7 +459,8 @@ Lab.modules.push(function () {
       this.dragging = null;
       f.camPreset = id;
       f.camera = clone(id === 'base' ? this.c.base.camera : { position: d.position, target: d.target });
-      this.viewers[i].stage.setView(f.camera);
+      const v = this.viewers[i];
+      if (v && v.shows === this.c) v.setView(f.camera); // 読み込み中なら、読み込みの最後に反映される
       this.refreshSide();
       this.refreshLabels();
     }
@@ -438,9 +471,10 @@ Lab.modules.push(function () {
     }
 
     onCameraChange(i) {
-      if (!this.c || i >= this.c.count) return;
-      const f = this.c.frames[i];
-      f.camera = this.viewers[i].stage.getView();
+      const v = this.viewers[i], c = v && v.shows;
+      if (!c || c !== this.c || i >= c.count) return; // 読み込み中・別の比較を表示中なら書き戻さない
+      const f = c.frames[i];
+      f.camera = v.stage.getView();
       if (this.dragging === i && f.camPreset !== 'custom') {
         f.camPreset = 'custom';
         if (i === this.c.selected) this.refreshSide();
