@@ -172,6 +172,9 @@ Lab.modules.push(function () {
     applyLook(params) {
       const pal = Lab.palettes[params.palette] || Lab.palettes.library;
       const bg = Lab.backgrounds[params.background] || Lab.backgrounds.dark;
+      const fin = Lab.finishes[params.finish] || Lab.finishes.base;
+      this.material.metalness = fin.metalness;
+      this.material.roughness = fin.roughness;
       const key = params.palette + '|' + params.background;
       if (this.paletteKey === key) return;
       this.paletteKey = key;

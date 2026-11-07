@@ -190,6 +190,47 @@ Lab.modules.push(function () {
     });
     $('btnResetView').addEventListener('click', () => stage.resetView());
 
+    // ---- 比較モード（js/compare.js）：編集中の演出を複製して2〜4枠で見比べる ----
+    const appRoot = document.querySelector('.app');
+    const compare = new Lab.Compare($('compare'), {
+      toast,
+      // 採用した案の設定を引き継いで1画面編集に戻る
+      adopt(r) {
+        appRoot.classList.remove('comparing');
+        state.effect = r.effect;
+        state.presetId = r.presetId;
+        state.modified = r.modified;
+        state.params = Lab.sanitizeParams(r.params);
+        setLoop(r.loop);
+        stage.setView(r.camera);
+        apply({ restart: true });
+        toast(`${r.label}を採用しました。続けて編集できます`);
+      },
+      // 比較前の編集状態のまま1画面に戻る（1画面の状態は比較中に変えていない）
+      cancel() {
+        appRoot.classList.remove('comparing');
+        toast('比較をやめて、比較前の編集状態に戻りました');
+      },
+    });
+    const btnCompare = $('btnCompare');
+    btnCompare.addEventListener('click', async () => {
+      if (compare.active) return;
+      btnCompare.disabled = true;
+      try {
+        await chain; // 設定の反映が終わってから複製する
+        clock().pause();
+        stage.controls.autoRotate = false;
+        btnAuto.classList.remove('on');
+        appRoot.classList.add('comparing');
+        await compare.open({
+          effect: state.effect, presetId: state.presetId, modified: state.modified,
+          params: JSON.parse(JSON.stringify(state.params)), camera: stage.getView(), loop: timeline.loop,
+        });
+      } finally {
+        btnCompare.disabled = false;
+      }
+    });
+
     // ---- 記録 ----
     const memo = $('memo');
     memo.addEventListener('input', () => { state.memo = memo.value; saveSession(); });
@@ -243,6 +284,7 @@ Lab.modules.push(function () {
     });
 
     async function loadFile(file) {
+      if (compare.active) { toast('比較モード中は設定を読み込めません。1画面に戻ってから読み込んでください'); return; }
       try {
         const r = Lab.record.parseJSON(await file.text());
         if (document.activeElement) document.activeElement.blur(); // 入力欄にも復元した値を反映させる
@@ -283,6 +325,7 @@ Lab.modules.push(function () {
     // ---- キーボード ----
     window.addEventListener('keydown', (e) => {
       if (e.target.matches('input[type=text], textarea, input[type=file]')) return;
+      if (compare.active) { compare.handleKey(e); return; }
       if (e.code === 'Space') { e.preventDefault(); clock().toggle(); }
       else if (e.key === 'r' || e.key === 'R') resetOrRestart();
       else if (e.key === 'ArrowRight' && isSim() && !e.target.matches('input[type=range]')) sim.stepFrame();
@@ -319,6 +362,11 @@ Lab.modules.push(function () {
     function frame(now) {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
+      if (compare.active) { // 比較中は1画面のプレビューを描かず、比較の枠だけを描く
+        compare.frame(dt);
+        requestAnimationFrame(frame);
+        return;
+      }
       const c = clock();
       if (isSim()) {
         sim.update(dt);
@@ -339,6 +387,6 @@ Lab.modules.push(function () {
     }
     requestAnimationFrame(frame);
 
-    Lab.app = { state, stage, system, timeline, sim, pickPreset, changeParam, apply }; // デバッグ用
+    Lab.app = { state, stage, system, timeline, sim, pickPreset, changeParam, apply, compare }; // デバッグ用
   };
 });

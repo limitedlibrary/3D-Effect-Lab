@@ -80,3 +80,4 @@ blender -b -P verify_roundtrip.py -- 出力_30fps.json レポート.json [出力
 }
 ```
 `shape.type` は `cube` / `sphere` / `cylinder`（Blender でもきれいな基本図形として作成）と `mesh`（文字。頂点と三角形をそのまま渡す）です。
+`materials` の `metalness` / `roughness` は、画面の「質感」（標準 / 金属寄り / マット / つや）の値がそのまま入ります（標準なら上の例と同じ 0.35 / 0.38、側面は 0.35 / 0.5）。照明の向き・強さは出力しません。
