@@ -29,7 +29,8 @@ Lab.modules.push(function () {
       const pmrem = new THREE.PMREMGenerator(r);
       scene.environment = pmrem.fromScene(new A.RoomEnvironment(), 0.04).texture;
 
-      scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x30283a, 0.6));
+      this.hemiLight = new THREE.HemisphereLight(0xdfe6ff, 0x30283a, 0.6);
+      scene.add(this.hemiLight);
       const key = new THREE.DirectionalLight(0xffffff, 1.6);
       key.position.set(5, 8, 6);
       const sc = key.shadow.camera;
@@ -40,6 +41,7 @@ Lab.modules.push(function () {
       scene.add(key);
       const rim = new THREE.DirectionalLight(0x9b8fd6, 1.0);
       rim.position.set(-6, 2, -6);
+      this.rimLight = rim;
       scene.add(rim);
       this.flash = new THREE.PointLight(0xffd98a, 0, 30, 1.5);
       scene.add(this.flash);
@@ -88,6 +90,17 @@ Lab.modules.push(function () {
       this.bloom.strength = params.glow * 0.8 * bg.bloom;
       const pal = Lab.palettes[params.palette] || Lab.palettes.library;
       this.flash.color.set(pal.glow);
+      this.applyLighting(params);
+    }
+
+    // 照明の向き・強さ（基準・強さ1倍で従来と同じ明るさ）
+    applyLighting(params) {
+      const dir = Lab.lightDirs[params.lightDir] || Lab.lightDirs.base;
+      const power = typeof params.lightPower === 'number' ? params.lightPower : 1;
+      this.keyLight.position.fromArray(dir.pos);
+      this.keyLight.intensity = 1.6 * power;
+      this.rimLight.intensity = 1.0 * power;
+      this.hemiLight.intensity = 0.6 * (0.5 + 0.5 * power);
     }
 
     setShadows(on) {

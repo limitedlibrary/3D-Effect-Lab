@@ -74,8 +74,11 @@ Lab.modules.push(function () {
     item.materials.forEach((m, k) => {
       const base = new THREE.Color(pal.colors[m.colorIndex % pal.colors.length]);
       const tag = item.materials.length > 1 ? `${k}_` : '';
-      out.push({ name: tag + 'face', color: hex(base), metalness: 0.35, roughness: 0.38 });
-      if (m.mats[1]) out.push({ name: tag + 'side', color: hex(base.clone().multiplyScalar(0.62)), metalness: 0.35, roughness: 0.5 });
+      // 質感（金属っぽさ・粗さ）は画面のマテリアルの値をそのまま使う（標準なら 0.35 / 0.38・0.5）
+      const r3 = (x) => Math.round(x * 1000) / 1000;
+      const face = m.mats[0], side = m.mats[1];
+      out.push({ name: tag + 'face', color: hex(base), metalness: r3(face.metalness), roughness: r3(face.roughness) });
+      if (side) out.push({ name: tag + 'side', color: hex(base.clone().multiplyScalar(0.62)), metalness: r3(side.metalness), roughness: r3(side.roughness) });
     });
     return out;
   }

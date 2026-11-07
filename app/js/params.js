@@ -21,6 +21,23 @@
     mono:    { label: 'モノクロ', colors: ['#f0f0f0', '#a0a0a0', '#5a5a5a', '#d0d0d0'], glow: '#ffffff', dust: '#ffffff' },
   };
 
+  // 照明の向き（メインのライトを置く位置。原点を照らす）
+  Lab.lightDirs = {
+    base:  { label: '基準',     pos: [5, 8, 6] },
+    back:  { label: '逆光',     pos: [-1.5, 4.5, -9] },
+    side:  { label: '横から',   pos: [10, 2.5, 0.5] },
+    top:   { label: '真上から', pos: [0.5, 12, 0.5] },
+    front: { label: '正面から', pos: [0, 3, 10] },
+  };
+
+  // 質感（破片・シミュレーションの物体のマテリアル）。base は従来の値
+  Lab.finishes = {
+    base:  { label: '標準',     metalness: 0.35, roughness: 0.4 },
+    metal: { label: '金属寄り', metalness: 0.9,  roughness: 0.22 },
+    matte: { label: 'マット',   metalness: 0.05, roughness: 0.85 },
+    gloss: { label: 'つや',     metalness: 0.1,  roughness: 0.12 },
+  };
+
   // 文字の集合先に使うフォント（index.html で Google Fonts から読み込み）
   Lab.fonts = {
     gothic:  { label: 'ゴシック',   family: '"Noto Sans JP"',       bold: 900, normal: 500 },
@@ -155,6 +172,12 @@
     { group: 'look', key: 'dust', label: '光の粒', type: 'range', default: 0.5, replay: false,
       min: 0, max: 1, step: 0.01, minLabel: 'なし', maxLabel: '多い' },
     { group: 'look', sim: true, key: 'floor', label: '床のグリッドを表示', type: 'toggle', default: true, replay: false },
+    { group: 'look', sim: true, key: 'finish', label: '質感', type: 'segment', default: 'base', replay: false,
+      options: [['base', '標準'], ['metal', '金属寄り'], ['matte', 'マット'], ['gloss', 'つや']] },
+    { group: 'look', sim: true, key: 'lightDir', label: '照明の向き', type: 'segment', default: 'base', replay: false,
+      options: [['base', '基準'], ['back', '逆光'], ['side', '横から'], ['top', '真上から'], ['front', '正面から']] },
+    { group: 'look', sim: true, key: 'lightPower', label: '照明の強さ', type: 'range', default: 1, replay: false,
+      min: 0.2, max: 2, step: 0.05, minLabel: '暗い', maxLabel: '明るい', format: (v) => v.toFixed(2) + '倍' },
 
     // ---- 内部値（UIは「ばらつきを変える」ボタン） ----
     { group: 'hidden', key: 'seed', type: 'number', default: 1 },

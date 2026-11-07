@@ -195,18 +195,25 @@ Lab.modules.push(function () {
 
     applyLook(params) {
       const pal = Lab.palettes[params.palette] || Lab.palettes.library;
-      const key = params.palette + '|' + params.glow;
+      const key = params.palette + '|' + params.glow + '|' + params.finish;
       if (key === this.lookKey) return;
       this.lookKey = key;
       const glow = new THREE.Color(pal.glow);
+      // 質感：表面は基準より少しつややかに、側面は少しざらつかせる（標準で従来の 0.38 / 0.5）
+      const fin = Lab.finishes[params.finish] || Lab.finishes.base;
+      const faceRough = U.clamp(fin.roughness - 0.02, 0, 1), sideRough = U.clamp(fin.roughness + 0.1, 0, 1);
       for (const it of this.items) {
         for (const m of it.materials) {
           const c = pal.colors[m.colorIndex % pal.colors.length];
           m.mats[0].color.set(c);
           m.mats[0].emissive.copy(glow).multiplyScalar(params.glow * 0.12);
+          m.mats[0].metalness = fin.metalness;
+          m.mats[0].roughness = faceRough;
           if (m.mats[1]) {
             m.mats[1].color.set(c).multiplyScalar(0.62);
             m.mats[1].emissive.copy(glow).multiplyScalar(params.glow * 0.05);
+            m.mats[1].metalness = fin.metalness;
+            m.mats[1].roughness = sideRough;
           }
         }
       }
